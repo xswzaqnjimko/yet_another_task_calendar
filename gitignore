@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+dist-ssr/
+target/
+src-tauri/target/
+
+# Local env files
+.env
+.env.local
+.env.*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database (local development)
+*.db
+*.db-journal
+
+# Tauri
+src-tauri/WixTools/
+src-tauri/*.dmg
+src-tauri/*.app
+src-tauri/*.deb
+src-tauri/*.AppImage
+src-tauri/*.msi
