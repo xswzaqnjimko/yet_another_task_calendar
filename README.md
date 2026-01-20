@@ -128,5 +128,7 @@ This project is for non-profit use.
 ## Acknowledgments
 
 Thanks to the creators of Apple Calendar, iHour, Excel and Google Sheets, gogh, and other existing time/task management tools for inspiration. 
+
 Thanks Claude Opus 4.5 & GPT 5.2 Thinking.
-THanks my friends who supported and enjoyed this.
+
+Thanks my friends who supported and enjoyed this.
