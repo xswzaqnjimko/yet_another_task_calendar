@@ -78,7 +78,7 @@ If a future update made one of these unavailable, that change needs fix...
 - **Today highlighting** - Current date row is visually emphasized
 - **Quick navigation** - Jump to top/today/bottom buttons
 - **Drag to reorder columns** - Remembers your preferred task order
-- **Privacy Mode** - Blur all text for safe screenshots
+- **Privacy/Screenshot Mode** - Blur all text for safe screenshots
 - **Export CSV** - Export your data
 
 ### Cell Entries
@@ -124,7 +124,7 @@ If a future update made one of these unavailable, that change needs fix...
 - [ ] Recurrence options for entries
 - [ ] Fixed width mode text truncation
 - [ ] "Stop all timers" button
-- [ ] "Leave this column viewable" in Privacy mode
+- [ ] "Leave this column viewable" in Privacy/Screenshot mode
 - [ ] Etc. ...
 
 ## License
