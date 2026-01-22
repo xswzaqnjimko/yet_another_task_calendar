@@ -50,7 +50,7 @@ xcode-select --install
 ```bash
 # In Terminal,
 # Navigate to project folder
-cd your_path/task-grid
+cd your_path/task_grid_app
 
 # Install dependencies
 npm install
