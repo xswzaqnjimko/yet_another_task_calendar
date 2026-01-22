@@ -7,7 +7,7 @@
  * Colors used:
  * - Light green: #34C759
  * - Orange: #FF9500
- * - Pale purple: #AF52DE
+ * - Pale purple/lavender: #CCCCFF
  * - Gold: #FFD700
  * - Dark red: #C41E3A
  * - Bright blue: #007AFF
@@ -75,50 +75,84 @@ export const tutorialTemplate = {
   ],
 
   // Occurrence definitions with day offsets from today
+  // status: 'planned' (default), 'done', 'skipped'
+  // timeRecord: { minMinutes, maxMinutes } - will generate random duration in range
   occurrences: [
-    // Task 1-1: 小卡冥想 - Daily for 10 days (day 0-9)
-    { taskRef: 'task-1-1', dayOffset: 0, title: '意念跳篝火！', notes: '早上好～' },
-    { taskRef: 'task-1-1', dayOffset: 1, title: '意念跳篝火！', notes: '早上好～' },
-    { taskRef: 'task-1-1', dayOffset: 2, title: '意念跳篝火！', notes: '早上好～' },
-    { taskRef: 'task-1-1', dayOffset: 3, title: '意念跳篝火！', notes: '早上好～' },
-    { taskRef: 'task-1-1', dayOffset: 4, title: '意念跳篝火！', notes: '早上好～' },
-    { taskRef: 'task-1-1', dayOffset: 5, title: '意念跳篝火！', notes: '早上好～' },
-    { taskRef: 'task-1-1', dayOffset: 6, title: '意念跳篝火！', notes: '早上好～' },
-    { taskRef: 'task-1-1', dayOffset: 7, title: '意念跳篝火！', notes: '早上好～' },
-    { taskRef: 'task-1-1', dayOffset: 8, title: '意念跳篝火！', notes: '早上好～' },
-    { taskRef: 'task-1-1', dayOffset: 9, title: '意念跳篝火！', notes: '早上好～' },
+    // ===== Task 1-1: 小卡冥想 (Daily) =====
+    // Past entries (days -6 to -1) - mostly done, some skipped
+    { taskRef: 'task-1-1', dayOffset: -6, title: '意念跳篝火！', notes: '早上好～', status: 'done', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: -5, title: '意念跳篝火！', notes: '早上好～', status: 'done', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: -4, title: '意念跳篝火！', notes: '早上好～', status: 'skipped', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: -3, title: '意念跳篝火！', notes: '早上好～', status: 'done', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: -2, title: '意念跳篝火！', notes: '早上好～', status: 'done', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: -1, title: '意念跳篝火！', notes: '早上好～', status: 'done', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    // Today and future (days 0-9) - planned
+    { taskRef: 'task-1-1', dayOffset: 0, title: '意念跳篝火！', notes: '早上好～', status: 'planned', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: 1, title: '意念跳篝火！', notes: '早上好～', status: 'planned', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: 2, title: '意念跳篝火！', notes: '早上好～', status: 'planned', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: 3, title: '意念跳篝火！', notes: '早上好～', status: 'planned', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: 4, title: '意念跳篝火！', notes: '早上好～', status: 'planned', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: 5, title: '意念跳篝火！', notes: '早上好～', status: 'planned', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: 6, title: '意念跳篝火！', notes: '早上好～', status: 'planned', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: 7, title: '意念跳篝火！', notes: '早上好～', status: 'planned', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: 8, title: '意念跳篝火！', notes: '早上好～', status: 'planned', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
+    { taskRef: 'task-1-1', dayOffset: 9, title: '意念跳篝火！', notes: '早上好～', status: 'planned', timeRecord: { minMinutes: 25, maxMinutes: 50 } },
 
-    // Task 1-2: 小卡吃饭 - Daily for 10 days (day 0-9)
-    { taskRef: 'task-1-2', dayOffset: 0, title: '', notes: '再来一份小面包！' },
-    { taskRef: 'task-1-2', dayOffset: 1, title: '', notes: '再来一份小面包！' },
-    { taskRef: 'task-1-2', dayOffset: 2, title: '', notes: '再来一份小面包！' },
-    { taskRef: 'task-1-2', dayOffset: 3, title: '', notes: '再来一份小面包！' },
-    { taskRef: 'task-1-2', dayOffset: 4, title: '', notes: '再来一份小面包！' },
-    { taskRef: 'task-1-2', dayOffset: 5, title: '', notes: '再来一份小面包！' },
-    { taskRef: 'task-1-2', dayOffset: 6, title: '', notes: '再来一份小面包！' },
-    { taskRef: 'task-1-2', dayOffset: 7, title: '', notes: '再来一份小面包！' },
-    { taskRef: 'task-1-2', dayOffset: 8, title: '', notes: '再来一份小面包！' },
-    { taskRef: 'task-1-2', dayOffset: 9, title: '', notes: '再来一份小面包！' },
+    // ===== Task 1-2: 小卡吃饭 (Daily) =====
+    // Past entries (days -6 to -1) - mostly done, some skipped
+    { taskRef: 'task-1-2', dayOffset: -6, title: '', notes: '再来一份小面包！', status: 'done', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: -5, title: '', notes: '再来一份小面包！', status: 'done', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: -4, title: '', notes: '再来一份小面包！', status: 'done', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: -3, title: '', notes: '再来一份小面包！', status: 'skipped', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: -2, title: '', notes: '再来一份小面包！', status: 'done', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: -1, title: '', notes: '再来一份小面包！', status: 'done', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    // Today and future (days 0-9) - planned
+    { taskRef: 'task-1-2', dayOffset: 0, title: '', notes: '再来一份小面包！', status: 'planned', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: 1, title: '', notes: '再来一份小面包！', status: 'planned', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: 2, title: '', notes: '再来一份小面包！', status: 'planned', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: 3, title: '', notes: '再来一份小面包！', status: 'planned', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: 4, title: '', notes: '再来一份小面包！', status: 'planned', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: 5, title: '', notes: '再来一份小面包！', status: 'planned', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: 6, title: '', notes: '再来一份小面包！', status: 'planned', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: 7, title: '', notes: '再来一份小面包！', status: 'planned', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: 8, title: '', notes: '再来一份小面包！', status: 'planned', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
+    { taskRef: 'task-1-2', dayOffset: 9, title: '', notes: '再来一份小面包！', status: 'planned', timeRecord: { minMinutes: 30, maxMinutes: 55 } },
 
-    // Task 1-3: 小卡喝茶 - today, +3 days, +7 days (3 entries)
-    { taskRef: 'task-1-3', dayOffset: 0, title: '兄弟干杯', notes: '' },
-    { taskRef: 'task-1-3', dayOffset: 3, title: '兄弟干杯', notes: '' },
-    { taskRef: 'task-1-3', dayOffset: 7, title: '兄弟干杯', notes: '' },
+    // ===== Task 1-3: 小卡喝茶 =====
+    // Past: yesterday - skipped
+    { taskRef: 'task-1-3', dayOffset: -1, title: '和老婆喝！', notes: '开会太久了', status: 'skipped' },
+    // Today and future
+    { taskRef: 'task-1-3', dayOffset: 0, title: '兄弟干杯', notes: '', status: 'planned' },
+    { taskRef: 'task-1-3', dayOffset: 3, title: '兄弟干杯', notes: '', status: 'planned' },
+    { taskRef: 'task-1-3', dayOffset: 4, title: '和老婆喝！', notes: '并同老婆商议明日开会', status: 'planned' }, // day 5 = dayOffset 4
+    { taskRef: 'task-1-3', dayOffset: 7, title: '兄弟干杯', notes: '', status: 'planned' },
 
-    // Task 2-1: 小卡修路 - today, +2 days, +5 days (3 entries)
-    { taskRef: 'task-2-1', dayOffset: 0, title: '仰望星空！', notes: '脚踏实地……' },
-    { taskRef: 'task-2-1', dayOffset: 2, title: '仰望星空！', notes: '脚踏实地……' },
-    { taskRef: 'task-2-1', dayOffset: 5, title: '仰望星空！', notes: '脚踏实地……' },
+    // ===== Task 2-1: 小卡修路 =====
+    // Past: yesterday - done
+    { taskRef: 'task-2-1', dayOffset: -1, title: '又开个会', notes: '谢谢老婆', status: 'done' },
+    // Today and future
+    { taskRef: 'task-2-1', dayOffset: 0, title: '仰望星空！', notes: '脚踏实地……', status: 'planned' },
+    { taskRef: 'task-2-1', dayOffset: 2, title: '仰望星空！', notes: '脚踏实地……', status: 'planned' },
+    { taskRef: 'task-2-1', dayOffset: 5, title: '仰望星空！', notes: '脚踏实地……', status: 'planned' },
 
-    // Task 2-2: 小卡开会 - Every other day for 10 days (day 0, 2, 4, 6, 8 = 5 entries)
-    { taskRef: 'task-2-2', dayOffset: 0, title: '中会', notes: '要记笔记' },
-    { taskRef: 'task-2-2', dayOffset: 2, title: '中会', notes: '要记笔记' },
-    { taskRef: 'task-2-2', dayOffset: 4, title: '中会', notes: '要记笔记' },
-    { taskRef: 'task-2-2', dayOffset: 6, title: '中会', notes: '要记笔记' },
-    { taskRef: 'task-2-2', dayOffset: 8, title: '中会', notes: '要记笔记' },
+    // ===== Task 2-2: 小卡开会 (Every other day) =====
+    // Past entries (days -6, -4, -2) - mostly done, some skipped
+    { taskRef: 'task-2-2', dayOffset: -6, title: '中会', notes: '要记笔记', status: 'done' },
+    { taskRef: 'task-2-2', dayOffset: -4, title: '中会', notes: '要记笔记', status: 'done' },
+    { taskRef: 'task-2-2', dayOffset: -2, title: '中会', notes: '要记笔记', status: 'skipped' },
+    // Past: yesterday - 大会 done
+    { taskRef: 'task-2-2', dayOffset: -1, title: '大会', notes: '', status: 'done' },
+    // Today and future (days 0, 2, 4, 6, 8) - planned
+    { taskRef: 'task-2-2', dayOffset: 0, title: '中会', notes: '要记笔记', status: 'planned' },
+    { taskRef: 'task-2-2', dayOffset: 1, title: '大会', notes: '', status: 'planned' }, // tomorrow
+    { taskRef: 'task-2-2', dayOffset: 2, title: '中会', notes: '要记笔记', status: 'planned' },
+    { taskRef: 'task-2-2', dayOffset: 4, title: '中会', notes: '要记笔记', status: 'planned' },
+    { taskRef: 'task-2-2', dayOffset: 5, title: '大会', notes: '', status: 'planned' }, // day 6 = dayOffset 5
+    { taskRef: 'task-2-2', dayOffset: 6, title: '中会', notes: '要记笔记', status: 'planned' },
+    { taskRef: 'task-2-2', dayOffset: 8, title: '中会', notes: '要记笔记', status: 'planned' },
 
-    // Task 2-3: 小卡调药 - tomorrow only (1 entry)
-    { taskRef: 'task-2-3', dayOffset: 1, title: '轻微拉肚子即可', notes: '找桌游部试配方' },
+    // ===== Task 2-3: 小卡调药 - tomorrow only (1 entry) =====
+    { taskRef: 'task-2-3', dayOffset: 1, title: '轻微拉肚子即可', notes: '找桌游部试配方', status: 'planned' },
   ],
 
   // Management page ordering

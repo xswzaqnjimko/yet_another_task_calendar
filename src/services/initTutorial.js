@@ -9,6 +9,7 @@ import { tutorialTemplate } from './tutorialData';
 import {
   createTask,
   createOccurrence,
+  createTimeEntry,
   setSetting,
   generateId,
 } from './database';
@@ -38,10 +39,17 @@ const getOffsetDate = (dayOffset) => {
 };
 
 /**
+ * Generate a random integer between min and max (inclusive)
+ */
+const randomInt = (min, max) => {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+/**
  * Load demo/tutorial tasks
- * Creates sample tasks, occurrences, and sets up ordering
+ * Creates sample tasks, occurrences, time entries, and sets up ordering
  * 
- * @returns {Promise<{success: boolean, tasks: number, occurrences: number, error?: any}>}
+ * @returns {Promise<{success: boolean, tasks: number, occurrences: number, timeEntries: number, error?: any}>}
  */
 export const loadDemoTasks = async () => {
   try {
@@ -51,6 +59,7 @@ export const loadDemoTasks = async () => {
 
     // Map from refId to actual task ID
     const refIdToTaskId = {};
+    let timeEntriesCount = 0;
 
     // Step 1: Create tasks
     console.log(`[Demo] Creating ${tasks.length} tasks...`);
@@ -75,7 +84,7 @@ export const loadDemoTasks = async () => {
       await new Promise(resolve => setTimeout(resolve, 5));
     }
 
-    // Step 2: Create occurrences with actual dates
+    // Step 2: Create occurrences with actual dates, status, and time records
     console.log(`[Demo] Creating ${occurrences.length} occurrences...`);
     for (const occTemplate of occurrences) {
       const taskId = refIdToTaskId[occTemplate.taskRef];
@@ -91,7 +100,7 @@ export const loadDemoTasks = async () => {
         id: occId,
         task_id: taskId,
         date: occDate,
-        status: 'planned',
+        status: occTemplate.status || 'planned',
         title: occTemplate.title || '',
         notes: occTemplate.notes || '',
         created_at: new Date().toISOString(),
@@ -99,6 +108,36 @@ export const loadDemoTasks = async () => {
       };
 
       await createOccurrence(newOccurrence);
+      
+      // Create time entry if specified
+      if (occTemplate.timeRecord) {
+        const { minMinutes, maxMinutes } = occTemplate.timeRecord;
+        const durationMinutes = randomInt(minMinutes, maxMinutes);
+        const durationSeconds = durationMinutes * 60;
+        
+        // Create a plausible start time (morning hours on that day)
+        const startHour = randomInt(7, 10);
+        const startMinute = randomInt(0, 59);
+        
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() + occTemplate.dayOffset);
+        startDate.setHours(startHour, startMinute, 0, 0);
+        
+        const endDate = new Date(startDate.getTime() + durationSeconds * 1000);
+        
+        const timeEntry = {
+          id: generateId(),
+          occurrence_id: occId,
+          task_id: taskId,
+          date: occDate,
+          start_time: startDate.toISOString(),
+          end_time: endDate.toISOString(),
+          duration: durationSeconds,
+        };
+        
+        await createTimeEntry(timeEntry);
+        timeEntriesCount++;
+      }
       
       // Small delay
       await new Promise(resolve => setTimeout(resolve, 2));
@@ -127,6 +166,7 @@ export const loadDemoTasks = async () => {
       success: true,
       tasks: tasks.length,
       occurrences: occurrences.length,
+      timeEntries: timeEntriesCount,
     };
   } catch (error) {
     console.error('[Demo] Error loading demo data:', error);
@@ -134,6 +174,7 @@ export const loadDemoTasks = async () => {
       success: false, 
       tasks: 0, 
       occurrences: 0, 
+      timeEntries: 0,
       error 
     };
   }
