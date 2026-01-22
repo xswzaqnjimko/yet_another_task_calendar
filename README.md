@@ -124,6 +124,7 @@ If a future update made one of these unavailable, that change needs fix...
 - [ ] Recurrence options for entries
 - [ ] Fixed width mode text truncation
 - [ ] "Stop all timers" button
+- [ ] "Leave this column viewable" in Privacy mode
 - [ ] Etc. ...
 
 ## License
