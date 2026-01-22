@@ -17,6 +17,10 @@ Inspired by and learning from existing tools (thanks!):
 
 ## Development & Use
 
+*If you're a non-tech person like me:
+
+*Maybe just download the whole thing (all files here) to a folder "task-grid", then feed README.md to an AI for step-by-step instructions, computers nowadays teach better than I do...
+
 ### Prerequisites
 
 - Node.js 18+
