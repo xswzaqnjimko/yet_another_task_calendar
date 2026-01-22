@@ -21,7 +21,7 @@ Inspired by and learning from existing tools (thanks!):
 
 *Maybe just download the whole thing (all files here) to a folder "task-grid", then -
 
-*Or even skip the download step first, just download README.md (or copy-paste) to feed it an AI for step-by-step instructions, computers nowadays teach better than I do...
+*Or even skip the download step first, just download README.md (or copy-paste) to feed it to an AI for step-by-step instructions, computers nowadays teach better than I do...
 
 ### Prerequisites
 
