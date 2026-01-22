@@ -42,8 +42,9 @@ xcode-select --install
 ### Setup
 
 ```bash
+# In Terminal,
 # Navigate to project folder
-cd task-grid
+cd your_path/task-grid
 
 # Install dependencies
 npm install
@@ -51,12 +52,12 @@ npm install
 
 ### Test & Edit
 ```bash
-npm run tauri dev
+npm run tauri:dev
 ```
 
 ### Build/"output" the App to use
 ```bash
-npm run tauri build
+npm run tauri:build
 ```
 
 ## Features
