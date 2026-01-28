@@ -20,6 +20,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Get version from tag
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -53,3 +60,4 @@ jobs:
             - `.AppImage` or `.deb` for Linux
           releaseDraft: false
           prerelease: false
+          args: --config '{"package":{"version":"${{ steps.get_version.outputs.VERSION }}"}}'
