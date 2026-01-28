@@ -86,7 +86,7 @@ V1.1.2 2026/01/27.
 
 ### Cell Entries
 - **Click to edit** - Click any cell to add/edit entry content
-- **Repeat entries** - Create recurring entries (every X days for Y days)
+- **Repeat entries** - Create recurring entries (every X days for Y days, default 7 days for 70 days = 10 entries)
 - **Copy/Cut/Paste** - Hover over cells to see clipboard actions
 - **Auto-save on click outside** - For existing entries, clicking outside saves changes (empty entries needs at least "start timer" to enable this)
 - **Timer support** - Start/stop timer for any entry; continue timing while modal is closed
