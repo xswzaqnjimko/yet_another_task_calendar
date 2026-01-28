@@ -1,6 +1,6 @@
 [package]
 name = "task-grid"
-version = "0.1.0"
+version = "1.1.2"
 description = "A lightweight task planning and tracking tool"
 authors = ["you"]
 license = ""
