@@ -4,7 +4,7 @@
 use rusqlite::{Connection, Result as SqliteResult};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
-use tauri::{State, Manager};
+use tauri::{State, Manager, AppHandle, SystemTray, SystemTrayEvent, CustomMenuItem, SystemTrayMenu};
 use chrono::Utc;
 
 // Data structures matching the frontend schema
@@ -55,6 +55,11 @@ struct Settings {
 struct DbState {
     conn: Mutex<Connection>,
     db_path: String,
+}
+
+// Timer state for tray icon
+struct TimerState {
+    is_timing: Mutex<bool>,
 }
 
 // Initialize database and create tables
@@ -509,6 +514,54 @@ fn get_database_path(state: State<DbState>) -> Result<String, String> {
     Ok(state.db_path.clone())
 }
 
+// Tray icon commands
+#[tauri::command]
+fn set_tray_timer_active(app_handle: AppHandle, active: bool) -> Result<(), String> {
+    let tray_handle = app_handle.tray_handle();
+    
+    if active {
+        // Set timer icon - using the timer icon path
+        #[cfg(target_os = "macos")]
+        {
+            let _ = tray_handle.set_icon(tauri::Icon::File(
+                app_handle.path_resolver()
+                    .resolve_resource("icons/tray-timer.png")
+                    .unwrap_or_else(|| std::path::PathBuf::from("icons/tray-timer.png"))
+            ));
+            let _ = tray_handle.set_title("⏱️");
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = tray_handle.set_icon(tauri::Icon::File(
+                app_handle.path_resolver()
+                    .resolve_resource("icons/tray-timer.png")
+                    .unwrap_or_else(|| std::path::PathBuf::from("icons/tray-timer.png"))
+            ));
+        }
+    } else {
+        // Set normal icon (or hide)
+        #[cfg(target_os = "macos")]
+        {
+            let _ = tray_handle.set_icon(tauri::Icon::File(
+                app_handle.path_resolver()
+                    .resolve_resource("icons/tray-icon.png")
+                    .unwrap_or_else(|| std::path::PathBuf::from("icons/tray-icon.png"))
+            ));
+            let _ = tray_handle.set_title("");
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = tray_handle.set_icon(tauri::Icon::File(
+                app_handle.path_resolver()
+                    .resolve_resource("icons/tray-icon.png")
+                    .unwrap_or_else(|| std::path::PathBuf::from("icons/tray-icon.png"))
+            ));
+        }
+    }
+    
+    Ok(())
+}
+
 fn main() {
     // Get app data directory - using the same path as your working version
     let app_dir = tauri::api::path::app_data_dir(&tauri::Config::default())
@@ -527,7 +580,42 @@ fn main() {
         db_path: db_path_string,
     };
 
+    // Create system tray menu
+    let show = CustomMenuItem::new("show".to_string(), "Show Task Grid");
+    let quit = CustomMenuItem::new("quit".to_string(), "Quit");
+    let tray_menu = SystemTrayMenu::new()
+        .add_item(show)
+        .add_item(quit);
+
+    // Create system tray
+    let system_tray = SystemTray::new().with_menu(tray_menu);
+
     tauri::Builder::default()
+        .system_tray(system_tray)
+        .on_system_tray_event(|app, event| match event {
+            SystemTrayEvent::LeftClick { .. } => {
+                // Show the window on left click
+                if let Some(window) = app.get_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+            SystemTrayEvent::MenuItemClick { id, .. } => {
+                match id.as_str() {
+                    "show" => {
+                        if let Some(window) = app.get_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "quit" => {
+                        std::process::exit(0);
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        })
         .setup(|app| {
             app.manage(db_state);
             Ok(())
@@ -550,6 +638,7 @@ fn main() {
             get_setting,
             set_setting,
             get_database_path,
+            set_tray_timer_active,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

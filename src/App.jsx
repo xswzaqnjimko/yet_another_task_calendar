@@ -14,7 +14,8 @@ import {
   updateOccurrence,
   deleteOccurrence,
   createTimeEntry,
-  generateId
+  generateId,
+  setTrayTimerActive
 } from './services/database';
 import { loadDemoTasks } from './services/initTutorial';
 import './App.css';
@@ -62,6 +63,12 @@ function App() {
     if (!activeTimers || activeTimers.length === 0) return;
     const id = setInterval(() => setTimerNow(Date.now()), 1000);
     return () => clearInterval(id);
+  }, [activeTimers]);
+
+  // Sync system tray icon with timer state
+  useEffect(() => {
+    const isAnyTimerActive = activeTimers && activeTimers.length > 0;
+    setTrayTimerActive(isAnyTimerActive);
   }, [activeTimers]);
 
   // Load initial data

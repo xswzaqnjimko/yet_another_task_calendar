@@ -78,3 +78,13 @@ export const setSetting = async (key, value) => {
 export const getDatabasePath = async () => {
   return await invoke('get_database_path');
 };
+
+// System Tray
+export const setTrayTimerActive = async (active) => {
+  try {
+    return await invoke('set_tray_timer_active', { active });
+  } catch (e) {
+    // Silently fail if tray not available
+    console.log('Tray not available:', e);
+  }
+};

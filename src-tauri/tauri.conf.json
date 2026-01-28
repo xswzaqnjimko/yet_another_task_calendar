@@ -15,7 +15,7 @@
       "all": false,
       "shell": {
         "all": false,
-        "open": false
+        "open": true
       },
       "dialog": {
         "all": false,
@@ -40,10 +40,18 @@
         "icons/128x128@2x.png",
         "icons/icon.icns",
         "icons/icon.ico"
+      ],
+      "resources": [
+        "icons/tray-icon.png",
+        "icons/tray-timer.png"
       ]
     },
     "security": {
       "csp": null
+    },
+    "systemTray": {
+      "iconPath": "icons/tray-icon.png",
+      "iconAsTemplate": true
     },
     "windows": [
       {
