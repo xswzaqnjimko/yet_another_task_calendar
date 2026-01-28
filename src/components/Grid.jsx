@@ -9,6 +9,8 @@ function Grid({
   columnWidth, 
   language,
   dataLoaded,
+  gridStartDate,
+  gridEndDate,
   onCellClick, 
   onTaskClick,
   onLoadDemo,
@@ -17,8 +19,10 @@ function Grid({
   onClearDeletedItem,
   activeTimers,
   privacyMode,
-  spotlightTaskId,
+  spotlightTaskIds,
   onSpotlightTask,
+  onUnspotlightTask,
+  onClearSpotlight,
   clipboard,
   onCopy,
   onCut,
@@ -67,18 +71,39 @@ function Grid({
   // Hover popup state
   const [hoveredCell, setHoveredCell] = useState(null); // { taskId, date, x, y }
   const hoverTimeoutRef = useRef(null);
+  
+  // Hovered task header for screenshot mode eye/blur buttons
+  const [hoveredHeaderTaskId, setHoveredHeaderTaskId] = useState(null);
+  const [hoveredHeaderPos, setHoveredHeaderPos] = useState(null); // { x, y }
+  const headerHoverTimeoutRef = useRef(null);
 
-  // Generate STABLE date range - does NOT depend on occurrences
+  // Generate date range based on props from App (dynamic based on earliest occurrence)
   const dates = useMemo(() => {
     const result = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - 365);
+    // Use provided dates or fall back to defaults
+    let startDate;
+    if (gridStartDate) {
+      startDate = new Date(gridStartDate);
+    } else {
+      // Default: yesterday
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 1);
+    }
+    startDate.setHours(0, 0, 0, 0);
     
-    const endDate = new Date(today);
-    endDate.setDate(today.getDate() + 100);
+    let endDate;
+    if (gridEndDate) {
+      endDate = new Date(gridEndDate);
+    } else {
+      // Default: 1 year + 1 month from today
+      endDate = new Date(today);
+      endDate.setFullYear(endDate.getFullYear() + 1);
+      endDate.setMonth(endDate.getMonth() + 1);
+    }
+    endDate.setHours(0, 0, 0, 0);
     
     const currentDate = new Date(startDate);
     while (currentDate <= endDate) {
@@ -87,7 +112,7 @@ function Grid({
     }
     
     return result;
-  }, []);
+  }, [gridStartDate, gridEndDate]);
 
   const formatDate = (date) => {
     // Use local timezone instead of UTC
@@ -97,10 +122,18 @@ function Grid({
     return `${year}-${month}-${day}`;
   };
 
-  const formatDateDisplay = (date) => {
+  const formatDateDisplay = (date, density) => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const year = date.getFullYear();
+    const isFirstOfMonth = date.getDate() === 1;
     
+    // Fat rows: always show year; Thin rows: only show year on 1st of month
+    const showYear = density === 'fat' || isFirstOfMonth;
+    
+    if (showYear) {
+      return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}, ${year}`;
+    }
     return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
   };
 
@@ -108,8 +141,8 @@ function Grid({
     if (!privacyMode || privacyMode === 'normal') return false;
     if (privacyMode === 'blurAll') return true;
     if (privacyMode === 'spotlight') {
-      // Blur everything except the spotlight column
-      return !(spotlightTaskId && taskId === spotlightTaskId);
+      // Blur everything except the spotlight columns
+      return !(spotlightTaskIds && spotlightTaskIds.includes(taskId));
     }
     return false;
   };
@@ -138,7 +171,7 @@ function Grid({
     setHoveredCell(null); // Hide popup on click
     // In privacy modes, block clicks on blurred cells (prevents accidental leakage)
     if (privacyMode && privacyMode !== 'normal') {
-      if (privacyMode === 'spotlight' && spotlightTaskId && taskId === spotlightTaskId) {
+      if (privacyMode === 'spotlight' && spotlightTaskIds && spotlightTaskIds.includes(taskId)) {
         onCellClick(taskId, dateStr);
       }
       return;
@@ -195,6 +228,45 @@ function Grid({
 
   const handlePopupMouseLeave = () => {
     setHoveredCell(null);
+  };
+
+  // Screenshot mode header hover handlers
+  const handleHeaderMouseEnter = (e, taskId) => {
+    if (!privacyMode || privacyMode === 'normal') return;
+    
+    const targetEl = e.currentTarget;
+    
+    if (headerHoverTimeoutRef.current) {
+      clearTimeout(headerHoverTimeoutRef.current);
+    }
+    
+    headerHoverTimeoutRef.current = setTimeout(() => {
+      const rect = targetEl.getBoundingClientRect();
+      setHoveredHeaderTaskId(taskId);
+      // Position at bottom-right corner of the header cell
+      setHoveredHeaderPos({ x: rect.right - 36, y: rect.bottom - 32 });
+    }, 150);
+  };
+
+  const handleHeaderMouseLeave = () => {
+    if (headerHoverTimeoutRef.current) {
+      clearTimeout(headerHoverTimeoutRef.current);
+    }
+    headerHoverTimeoutRef.current = setTimeout(() => {
+      setHoveredHeaderTaskId(null);
+      setHoveredHeaderPos(null);
+    }, 150);
+  };
+
+  const handleScreenshotPopupMouseEnter = () => {
+    if (headerHoverTimeoutRef.current) {
+      clearTimeout(headerHoverTimeoutRef.current);
+    }
+  };
+
+  const handleScreenshotPopupMouseLeave = () => {
+    setHoveredHeaderTaskId(null);
+    setHoveredHeaderPos(null);
   };
 
   // Clipboard actions for hovered cell
@@ -411,6 +483,8 @@ function Grid({
                   className={`task-header ${draggingTaskId === task.id ? 'dragging' : ''} ${dragOverTaskId === task.id ? 'drag-over' : ''}`}
                   onMouseDown={(e) => handleHeaderMouseDown(e, task.id)}
                   onClick={(e) => handleHeaderClick(e, task.id)}
+                  onMouseEnter={(e) => handleHeaderMouseEnter(e, task.id)}
+                  onMouseLeave={handleHeaderMouseLeave}
                 >
                   <div className={`task-name ${isTextBlurred(task.id) ? 'privacy-blur' : ''}`}>{task.name}</div>
                   <div 
@@ -422,18 +496,25 @@ function Grid({
             </tr>
           </thead>
           <tbody>
-            {dates.map(date => {
+            {dates.map((date, dateIndex) => {
               const dateStr = formatDate(date);
               const isTodayRow = isToday(date);
               const todayClass = isTodayRow ? 'today' : '';
+              
+              // Check if this is the first day of a week (Monday) or first day of a month
+              const isMonday = date.getDay() === 1;
+              const isFirstOfMonth = date.getDate() === 1;
+              const borderClass = isFirstOfMonth ? 'month-border' : (isMonday ? 'week-border' : '');
+              const rowClasses = [borderClass, isTodayRow ? 'today-row' : ''].filter(Boolean).join(' ');
 
               return (
                 <tr 
                   key={dateStr}
                   ref={isTodayRow ? todayRowRef : null}
+                  className={rowClasses}
                 >
                   <td className={`date-cell ${todayClass}`}>
-                    {formatDateDisplay(date)}
+                    {formatDateDisplay(date, rowDensity)}
                   </td>
                   
                   {activeTasks.map(task => {
@@ -445,6 +526,8 @@ function Grid({
                       const isDone = occurrence.status === 'done';
                       const isSkipped = occurrence.status === 'skipped';
                       
+                      // Build background: task color with status overlay
+                      // Today row styling is handled by CSS for empty cells only
                       let bgStyle;
                       if (isDone) {
                         bgStyle = `linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), ${task.color}`;
@@ -560,6 +643,37 @@ function Grid({
           >
             ×
           </button>
+        </div>
+      )}
+
+      {/* Screenshot mode: Eye/Blur toggle on task headers */}
+      {privacyMode && privacyMode !== 'normal' && hoveredHeaderTaskId && hoveredHeaderPos && (
+        <div 
+          className="screenshot-toggle-popup"
+          style={{
+            left: hoveredHeaderPos.x,
+            top: hoveredHeaderPos.y
+          }}
+          onMouseEnter={handleScreenshotPopupMouseEnter}
+          onMouseLeave={handleScreenshotPopupMouseLeave}
+        >
+          {isTextBlurred(hoveredHeaderTaskId) ? (
+            <button 
+              className="popup-btn screenshot-btn" 
+              onClick={() => onSpotlightTask && onSpotlightTask(hoveredHeaderTaskId)}
+              title="Show this column"
+            >
+              👁️
+            </button>
+          ) : (
+            <button 
+              className="popup-btn screenshot-btn" 
+              onClick={() => onUnspotlightTask && onUnspotlightTask(hoveredHeaderTaskId)}
+              title="Blur this column"
+            >
+              🌫️
+            </button>
+          )}
         </div>
       )}
 

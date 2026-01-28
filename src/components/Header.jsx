@@ -17,7 +17,7 @@ function Header({
   activeTimers,
   tasks,
   privacyMode,
-  spotlightTaskId,
+  spotlightTaskIds,
   onTogglePrivacy,
   onClearSpotlight
 }) {
@@ -60,8 +60,8 @@ function Header({
         ) : null}
 
         {privacyMode && privacyMode !== 'normal' ? (
-          <div className="privacy-badge" title="Privacy / Screenshot mode is ON">
-            🔒 Privacy {privacyMode === 'spotlight' ? ' (Spotlight)' : ''}
+          <div className="privacy-badge" title="Screenshot mode is ON">
+            🔒 Screenshot {privacyMode === 'spotlight' ? ' (Spotlight)' : ''}
           </div>
         ) : null}
       </div>
@@ -79,7 +79,6 @@ function Header({
           value={rowDensity} 
           onChange={(e) => onDensityChange(e.target.value)}
         >
-          <option value="normal">{t.normalRows}</option>
           <option value="thin">{t.thinRows}</option>
           <option value="fat">{t.fatRows}</option>
         </select>
@@ -96,9 +95,9 @@ function Header({
         <button
           className={privacyMode && privacyMode !== 'normal' ? 'privacy-on' : 'secondary'}
           onClick={() => onTogglePrivacy && onTogglePrivacy()}
-          title="Privacy / Screenshot mode (blur text for safe screenshots)"
+          title="Screenshot mode (blur text for safe screenshots)"
         >
-          🔒 Privacy
+          🔒 Screenshot
         </button>
 
         {privacyMode === 'spotlight' ? (

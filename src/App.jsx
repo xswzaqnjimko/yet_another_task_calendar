@@ -23,19 +23,23 @@ function App() {
   const [tasks, setTasks] = useState([]);
   const [occurrences, setOccurrences] = useState([]);
   const [language, setLanguage] = useState('en');
-  const [rowDensity, setRowDensity] = useState('normal');
+  const [rowDensity, setRowDensity] = useState('thin');
   const [columnWidth, setColumnWidth] = useState('fixed');
   const [columnOrder, setColumnOrder] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false); // Track if we've ever loaded data
   const [currentPage, setCurrentPage] = useState('grid');
+  
+  // Dynamic date range for Grid based on earliest occurrence
+  const [gridStartDate, setGridStartDate] = useState(null);
+  const [gridEndDate, setGridEndDate] = useState(null);
 
   // Privacy / screenshot mode
   // - normal: everything visible
   // - blurAll: blur all task text
-  // - spotlight: blur all except a selected task column
+  // - spotlight: blur all except selected task columns
   const [privacyMode, setPrivacyMode] = useState('normal');
-  const [spotlightTaskId, setSpotlightTaskId] = useState(null);
+  const [spotlightTaskIds, setSpotlightTaskIds] = useState([]); // Array of visible task IDs
   
   const [cellModalOpen, setCellModalOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -79,7 +83,12 @@ function App() {
       const savedColumnOrder = await getSetting('column_order');
       
       if (savedLanguage) setLanguage(savedLanguage);
-      if (savedDensity) setRowDensity(savedDensity);
+      // Handle legacy 'normal' density - convert to 'thin'
+      if (savedDensity && savedDensity !== 'normal') {
+        setRowDensity(savedDensity);
+      } else {
+        setRowDensity('thin');
+      }
       if (savedColumnWidth) setColumnWidth(savedColumnWidth);
       else setColumnWidth('fixed');
       if (savedColumnOrder) {
@@ -97,17 +106,43 @@ function App() {
       const tasksData = await getTasks();
       setTasks(tasksData);
       
-      // Load occurrences for date range
+      // Load occurrences - first with a wide range to find the earliest
       const today = new Date();
-      const startDate = new Date(today);
-      startDate.setDate(today.getDate() - 365);
+      today.setHours(0, 0, 0, 0);
+      
+      // End date: 1 year + 1 month from today
       const endDate = new Date(today);
-      endDate.setDate(today.getDate() + 100);
+      endDate.setFullYear(endDate.getFullYear() + 1);
+      endDate.setMonth(endDate.getMonth() + 1);
+      
+      // Start date: initially go back far to find earliest occurrence
+      const wideStartDate = new Date(today);
+      wideStartDate.setFullYear(wideStartDate.getFullYear() - 10); // 10 years back to find any old data
       
       const occurrencesData = await getOccurrences(
-        formatDate(startDate),
+        formatDate(wideStartDate),
         formatDate(endDate)
       );
+      
+      // Find the earliest occurrence date, or default to yesterday
+      let earliestDate = new Date(today);
+      earliestDate.setDate(earliestDate.getDate() - 1); // Default: yesterday
+      
+      if (occurrencesData && occurrencesData.length > 0) {
+        for (const occ of occurrencesData) {
+          const occDate = new Date(occ.date + 'T00:00:00');
+          if (occDate < earliestDate) {
+            earliestDate = occDate;
+          }
+        }
+        // Go back 1 day before the earliest entry
+        earliestDate.setDate(earliestDate.getDate() - 1);
+      }
+      
+      // Store the computed start date for Grid to use
+      setGridStartDate(earliestDate);
+      setGridEndDate(endDate);
+      
       setOccurrences(occurrencesData);
       setDataLoaded(true);
       
@@ -155,14 +190,31 @@ function App() {
     setSpotlightTaskId(null);
   };
 
+  // Add a task to spotlight (make visible)
   const spotlightTask = (taskId) => {
     if (!taskId) return;
-    setSpotlightTaskId(taskId);
+    setSpotlightTaskIds(prev => {
+      if (prev.includes(taskId)) return prev; // Already visible
+      return [...prev, taskId];
+    });
     setPrivacyMode('spotlight');
   };
 
+  // Remove a task from spotlight (blur it)
+  const unspotlightTask = (taskId) => {
+    if (!taskId) return;
+    setSpotlightTaskIds(prev => {
+      const newIds = prev.filter(id => id !== taskId);
+      // If no more spotlighted tasks, go back to blurAll
+      if (newIds.length === 0) {
+        setPrivacyMode('blurAll');
+      }
+      return newIds;
+    });
+  };
+
   const clearSpotlight = () => {
-    setSpotlightTaskId(null);
+    setSpotlightTaskIds([]);
     setPrivacyMode('blurAll');
   };
 
@@ -189,7 +241,7 @@ function App() {
     try {
       const result = await loadDemoTasks();
       if (result.success) {
-        alert(`Demo loaded! Created ${result.tasks} tasks with ${result.occurrences} entries.`);
+        alert(`Demo loaded! Created ${result.tasks} tasks with ${result.occurrences} entries and ${result.timeEntries} time records.`);
         await loadData({ showLoading: true });
       } else {
         alert('Failed to load demo tasks: ' + (result.error?.message || 'Unknown error'));
@@ -411,7 +463,7 @@ function App() {
             activeTimers={activeTimers}
             tasks={tasks}
             privacyMode={privacyMode}
-            spotlightTaskId={spotlightTaskId}
+            spotlightTaskIds={spotlightTaskIds}
             onTogglePrivacy={togglePrivacyMode}
             onClearSpotlight={clearSpotlight}
           />
@@ -423,6 +475,8 @@ function App() {
             columnWidth={columnWidth}
             language={language}
             dataLoaded={dataLoaded}
+            gridStartDate={gridStartDate}
+            gridEndDate={gridEndDate}
             onCellClick={handleCellClick}
             onTaskClick={handleTaskClick}
             onLoadDemo={handleLoadDemo}
@@ -431,8 +485,10 @@ function App() {
             onClearDeletedItem={clearDeletedItem}
             activeTimers={activeTimers}
             privacyMode={privacyMode}
-            spotlightTaskId={spotlightTaskId}
+            spotlightTaskIds={spotlightTaskIds}
             onSpotlightTask={spotlightTask}
+            onUnspotlightTask={unspotlightTask}
+            onClearSpotlight={clearSpotlight}
             clipboard={clipboard}
             onCopy={handleCopy}
             onCut={handleCut}

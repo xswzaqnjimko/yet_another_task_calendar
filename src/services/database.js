@@ -39,6 +39,23 @@ export const deleteOccurrence = async (occurrenceId) => {
   return await invoke('delete_occurrence', { occurrenceId });
 };
 
+// Repeat-related functions
+export const getOccurrencesByRepeatGroup = async (repeatGroupId) => {
+  return await invoke('get_occurrences_by_repeat_group', { repeatGroupId });
+};
+
+export const updateFutureRepeatEntries = async (repeatGroupId, fromDate, title, repeatingNotes) => {
+  return await invoke('update_future_repeat_entries', { repeatGroupId, fromDate, title, repeatingNotes });
+};
+
+export const deleteFutureRepeatEntries = async (repeatGroupId, fromDate) => {
+  return await invoke('delete_future_repeat_entries', { repeatGroupId, fromDate });
+};
+
+export const checkOccurrenceExists = async (taskId, date) => {
+  return await invoke('check_occurrence_exists', { taskId, date });
+};
+
 // Time Entries
 export const getTimeEntries = async (occurrenceId) => {
   return await invoke('get_time_entries', { occurrenceId });

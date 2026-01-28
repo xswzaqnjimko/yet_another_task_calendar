@@ -7,6 +7,9 @@ import {
   getTimeEntries,
   createTimeEntry,
   generateId,
+  updateFutureRepeatEntries,
+  deleteFutureRepeatEntries,
+  checkOccurrenceExists,
 } from '../services/database';
 import './Modal.css';
 
@@ -36,6 +39,25 @@ function CellModal({
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState('planned');
 
+  // Repeat state - use string for inputs to allow empty during typing
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [repeatEveryInput, setRepeatEveryInput] = useState('7');
+  const [repeatForInput, setRepeatForInput] = useState('70');
+  const [repeatingNotes, setRepeatingNotes] = useState('');
+  const [originalRepeatGroupId, setOriginalRepeatGroupId] = useState(null);
+  const [originalTitle, setOriginalTitle] = useState('');
+  const [originalRepeatingNotes, setOriginalRepeatingNotes] = useState('');
+
+  // Parse repeat inputs to numbers (with defaults)
+  const getRepeatEvery = () => {
+    const val = parseInt(repeatEveryInput, 10);
+    return Number.isFinite(val) && val >= 1 ? Math.min(val, 366) : 7;
+  };
+  const getRepeatFor = () => {
+    const val = parseInt(repeatForInput, 10);
+    return Number.isFinite(val) && val >= 1 ? Math.min(val, 366) : 70;
+  };
+
   const [timeEntries, setTimeEntries] = useState([]);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualMinutes, setManualMinutes] = useState('');
@@ -56,6 +78,19 @@ function CellModal({
     setTitle(occurrenceProp?.title || '');
     setNotes(occurrenceProp?.notes || '');
     setStatus(occurrenceProp?.status || 'planned');
+    
+    // Load repeat state
+    const hasRepeat = !!occurrenceProp?.repeat_group_id;
+    setRepeatEnabled(hasRepeat);
+    setRepeatingNotes(occurrenceProp?.repeating_notes || '');
+    setOriginalRepeatGroupId(occurrenceProp?.repeat_group_id || null);
+    setOriginalTitle(occurrenceProp?.title || '');
+    setOriginalRepeatingNotes(occurrenceProp?.repeating_notes || '');
+    // Reset repeat settings to defaults when opening new entry
+    if (!hasRepeat) {
+      setRepeatEveryInput('7');
+      setRepeatForInput('70');
+    }
 
     if (occurrenceProp?.id) {
       loadTimeEntries(occurrenceProp.id);
@@ -76,10 +111,10 @@ function CellModal({
   };
 
   const hasMeaningfulContent = () => {
-    const hasText = (title || '').trim() || (notes || '').trim();
+    const hasText = (title || '').trim() || (notes || '').trim() || (repeatingNotes || '').trim();
     const nonDefaultStatus = (status || 'planned') !== 'planned';
     const hasTime = (timeEntries || []).length > 0;
-    return !!(hasText || nonDefaultStatus || hasTime || isTimingThisCell);
+    return !!(hasText || nonDefaultStatus || hasTime || isTimingThisCell || repeatEnabled);
   };
 
   const createOccurrenceIfNeeded = async (forceCreate) => {
@@ -90,6 +125,8 @@ function CellModal({
       return null;
     }
 
+    const repeatGroupId = repeatEnabled ? generateId() : null;
+
     const newOccurrence = {
       id: generateId(),
       task_id: taskId,
@@ -97,19 +134,121 @@ function CellModal({
       status: status || 'planned',
       title: title || '',
       notes: notes || '',
+      repeat_group_id: repeatGroupId,
+      repeating_notes: repeatEnabled ? (repeatingNotes || '') : null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
+    console.log('[Repeat Debug] Creating occurrence with repeat:', {
+      repeatEnabled,
+      repeatGroupId,
+      repeatingNotes,
+      repeatEvery: getRepeatEvery(),
+      repeatFor: getRepeatFor(),
+      newOccurrence
+    });
+
     await createOccurrence(newOccurrence);
     setLocalOccurrence(newOccurrence);
+    
+    // Create repeat entries if enabled
+    if (repeatEnabled && repeatGroupId) {
+      console.log('[Repeat Debug] Creating repeat entries...');
+      await createRepeatEntries(newOccurrence, repeatGroupId);
+      console.log('[Repeat Debug] Repeat entries created');
+    }
+    
     await onUpdate();
     return newOccurrence;
   };
 
+  // Helper to get today's date string
+  const getTodayStr = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper to add days to a date string
+  const addDaysToDate = (dateStr, days) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Create repeat entries based on settings
+  const createRepeatEntries = async (baseOccurrence, repeatGroupId) => {
+    const interval = getRepeatEvery();
+    const duration = getRepeatFor();
+    
+    let currentDate = baseOccurrence.date;
+    let daysCreated = 0;
+    let entriesCreated = 0;
+    
+    console.log('[Repeat Debug] createRepeatEntries starting:', { interval, duration, baseDate: baseOccurrence.date });
+    
+    while (daysCreated < duration) {
+      currentDate = addDaysToDate(currentDate, interval);
+      daysCreated += interval;
+      
+      if (daysCreated > duration) break;
+      
+      // Check if occurrence already exists for this date
+      try {
+        const exists = await checkOccurrenceExists(taskId, currentDate);
+        if (exists) {
+          console.log('[Repeat Debug] Skipping existing date:', currentDate);
+          continue;
+        }
+      } catch (e) {
+        console.warn('Error checking occurrence exists:', e);
+        continue;
+      }
+      
+      const newOcc = {
+        id: generateId(),
+        task_id: taskId,
+        date: currentDate,
+        status: 'planned',
+        title: baseOccurrence.title || '',
+        notes: '',
+        repeat_group_id: repeatGroupId,
+        repeating_notes: baseOccurrence.repeating_notes || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      
+      try {
+        await createOccurrence(newOcc);
+        entriesCreated++;
+        console.log('[Repeat Debug] Created repeat entry for date:', currentDate);
+      } catch (e) {
+        console.warn('Error creating repeat occurrence:', e);
+      }
+    }
+    
+    console.log('[Repeat Debug] createRepeatEntries finished. Created', entriesCreated, 'entries');
+  };
+
   const handleSave = async (forceCreate = false) => {
+    console.log('[Repeat Debug] handleSave called with:', {
+      forceCreate,
+      localOccurrence: localOccurrence?.id,
+      repeatEnabled,
+      repeatEveryInput,
+      repeatForInput,
+      repeatingNotes
+    });
+    
     try {
       if (!localOccurrence) {
+        console.log('[Repeat Debug] No localOccurrence, calling createOccurrenceIfNeeded');
         const created = await createOccurrenceIfNeeded(forceCreate);
         // If it was an outside-click save and nothing meaningful was entered, treat as cancel.
         if (!created) {
@@ -121,16 +260,79 @@ function CellModal({
         return;
       }
 
-      // Update existing occurrence
-      const updatedOccurrence = {
-        ...localOccurrence,
-        title,
-        notes,
-        status,
-        updated_at: new Date().toISOString(),
-      };
+      // Existing occurrence - check for repeat changes
+      const todayStr = getTodayStr();
+      const hadRepeat = !!originalRepeatGroupId;
+      const repeatChanged = hadRepeat !== repeatEnabled;
+      const titleChanged = title !== originalTitle;
+      const repeatingNotesChanged = repeatingNotes !== originalRepeatingNotes;
 
-      await updateOccurrence(updatedOccurrence);
+      // Handle repeat rule changes
+      if (repeatChanged) {
+        if (hadRepeat && originalRepeatGroupId) {
+          // Delete all future repeat entries
+          await deleteFutureRepeatEntries(originalRepeatGroupId, todayStr);
+        }
+        
+        if (repeatEnabled) {
+          // Create new repeat group and entries
+          const newRepeatGroupId = generateId();
+          const updatedOccurrence = {
+            ...localOccurrence,
+            title,
+            notes,
+            status,
+            repeat_group_id: newRepeatGroupId,
+            repeating_notes: repeatingNotes || '',
+            updated_at: new Date().toISOString(),
+          };
+          await updateOccurrence(updatedOccurrence);
+          await createRepeatEntries(updatedOccurrence, newRepeatGroupId);
+        } else {
+          // Just remove repeat from this occurrence
+          const updatedOccurrence = {
+            ...localOccurrence,
+            title,
+            notes,
+            status,
+            repeat_group_id: null,
+            repeating_notes: null,
+            updated_at: new Date().toISOString(),
+          };
+          await updateOccurrence(updatedOccurrence);
+        }
+      } else if (hadRepeat && originalRepeatGroupId && (titleChanged || repeatingNotesChanged)) {
+        // Title or repeating notes changed - update future entries
+        await updateFutureRepeatEntries(
+          originalRepeatGroupId,
+          todayStr,
+          title || '',
+          repeatingNotes || ''
+        );
+        
+        // Update current occurrence
+        const updatedOccurrence = {
+          ...localOccurrence,
+          title,
+          notes,
+          status,
+          repeating_notes: repeatingNotes || '',
+          updated_at: new Date().toISOString(),
+        };
+        await updateOccurrence(updatedOccurrence);
+      } else {
+        // Normal update (no repeat changes)
+        const updatedOccurrence = {
+          ...localOccurrence,
+          title,
+          notes,
+          status,
+          repeating_notes: repeatEnabled ? (repeatingNotes || '') : localOccurrence.repeating_notes,
+          updated_at: new Date().toISOString(),
+        };
+        await updateOccurrence(updatedOccurrence);
+      }
+
       await onUpdate();
       onClose();
     } catch (error) {
@@ -141,7 +343,14 @@ function CellModal({
 
   const handleDelete = async () => {
     if (!localOccurrence) return;
-    if (!confirm('Delete this entry?')) return;
+    
+    // Different confirmation message based on whether it's a repeat entry
+    const hasRepeatGroup = !!localOccurrence.repeat_group_id;
+    const confirmMsg = hasRepeatGroup 
+      ? 'Delete this entry and all future repeat entries?' 
+      : 'Delete this entry?';
+    
+    if (!confirm(confirmMsg)) return;
 
     try {
       // Save for undo before deleting
@@ -153,7 +362,21 @@ function CellModal({
         });
       }
 
-      await deleteOccurrence(localOccurrence.id);
+      // If this is a repeat entry, delete all future entries (including today)
+      if (hasRepeatGroup) {
+        const todayStr = getTodayStr();
+        await deleteFutureRepeatEntries(localOccurrence.repeat_group_id, todayStr);
+      }
+      
+      // Also delete this specific occurrence (in case it's before today)
+      // deleteFutureRepeatEntries only deletes >= today, so we need this for past entries
+      try {
+        await deleteOccurrence(localOccurrence.id);
+      } catch (e) {
+        // Ignore if already deleted by deleteFutureRepeatEntries
+        console.log('Note: occurrence may have been deleted with future entries');
+      }
+      
       await onUpdate();
       onClose();
     } catch (error) {
@@ -332,9 +555,87 @@ function CellModal({
             />
           </div>
 
+          {/* Repeat Section */}
+          <div className="form-group repeat-section">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={repeatEnabled}
+                onChange={(e) => {
+                  console.log('[Repeat Debug] Checkbox changed to:', e.target.checked);
+                  setRepeatEnabled(e.target.checked);
+                }}
+              />
+              <span>Repeat</span>
+            </label>
+            
+            {repeatEnabled && (
+              <div className="repeat-options">
+                <div className="repeat-row">
+                  <span>Repeat every</span>
+                  <input
+                    type="number"
+                    value={repeatEveryInput}
+                    onChange={(e) => setRepeatEveryInput(e.target.value)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!Number.isFinite(val) || val < 1) {
+                        setRepeatEveryInput('7');
+                      } else if (val > 366) {
+                        setRepeatEveryInput('366');
+                      }
+                    }}
+                    min="1"
+                    max="366"
+                    className="repeat-number"
+                  />
+                  <span>day(s)</span>
+                </div>
+                <div className="repeat-row">
+                  <span>for next</span>
+                  <input
+                    type="number"
+                    value={repeatForInput}
+                    onChange={(e) => setRepeatForInput(e.target.value)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!Number.isFinite(val) || val < 1) {
+                        setRepeatForInput('70');
+                      } else if (val > 366) {
+                        setRepeatForInput('366');
+                      }
+                    }}
+                    min="1"
+                    max="366"
+                    className="repeat-number"
+                  />
+                  <span>day(s)</span>
+                </div>
+                
+                {/* Repeating Notes - only shown when repeat is enabled */}
+                <div className="form-group" style={{ marginTop: '12px' }}>
+                  <label>{t.repeatingNotes || 'Repeating Notes'}</label>
+                  <textarea
+                    value={repeatingNotes}
+                    onChange={(e) => setRepeatingNotes(e.target.value)}
+                    placeholder="Notes that copy to all repeat entries..."
+                    rows="2"
+                  />
+                </div>
+                
+                {originalRepeatGroupId && (
+                  <div className="repeat-info">
+                    ℹ️ Editing Title or Repeating Notes will update all future entries.
+                    Changing or disabling repeat will delete all future entries.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Notes */}
           <div className="form-group">
-            <label>{t.notes || 'Notes'}</label>
+            <label>{t.notes || 'Notes'} {repeatEnabled && <span style={{ fontWeight: 'normal', color: '#666' }}>(this entry only)</span>}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

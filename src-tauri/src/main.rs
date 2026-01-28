@@ -4,7 +4,7 @@
 use rusqlite::{Connection, Result as SqliteResult};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{State, Manager};
 use chrono::Utc;
 
 // Data structures matching the frontend schema
@@ -17,6 +17,7 @@ struct Task {
     group_id: Option<String>,
     sort_order: i32,
     archived: bool,
+    description: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -27,6 +28,8 @@ struct Occurrence {
     status: String,
     title: Option<String>,
     notes: Option<String>,
+    repeat_group_id: Option<String>,
+    repeating_notes: Option<String>,
     created_at: String,
     updated_at: String,
 }
@@ -51,6 +54,7 @@ struct Settings {
 // Database state
 struct DbState {
     conn: Mutex<Connection>,
+    db_path: String,
 }
 
 // Initialize database and create tables
@@ -63,10 +67,14 @@ fn init_database(conn: &Connection) -> SqliteResult<()> {
             icon TEXT,
             group_id TEXT,
             sort_order INTEGER NOT NULL DEFAULT 0,
-            archived INTEGER NOT NULL DEFAULT 0
+            archived INTEGER NOT NULL DEFAULT 0,
+            description TEXT
         )",
         [],
     )?;
+
+    // Migration: Add description column if it doesn't exist (for existing databases)
+    let _ = conn.execute("ALTER TABLE tasks ADD COLUMN description TEXT", []);
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS task_groups (
@@ -101,6 +109,8 @@ fn init_database(conn: &Connection) -> SqliteResult<()> {
             status TEXT NOT NULL DEFAULT 'planned',
             title TEXT,
             notes TEXT,
+            repeat_group_id TEXT,
+            repeating_notes TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             FOREIGN KEY (task_id) REFERENCES tasks(id),
@@ -108,6 +118,10 @@ fn init_database(conn: &Connection) -> SqliteResult<()> {
         )",
         [],
     )?;
+
+    // Migration: Add repeat columns if they don't exist (for existing databases)
+    let _ = conn.execute("ALTER TABLE occurrences ADD COLUMN repeat_group_id TEXT", []);
+    let _ = conn.execute("ALTER TABLE occurrences ADD COLUMN repeating_notes TEXT", []);
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS occurrence_exceptions (
@@ -169,7 +183,7 @@ fn init_database(conn: &Connection) -> SqliteResult<()> {
 fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
     let conn = state.conn.lock().unwrap();
     let mut stmt = conn
-        .prepare("SELECT id, name, color, icon, group_id, sort_order, archived FROM tasks ORDER BY sort_order ASC")
+        .prepare("SELECT id, name, color, icon, group_id, sort_order, archived, description FROM tasks ORDER BY sort_order ASC")
         .map_err(|e| e.to_string())?;
 
     let tasks = stmt
@@ -182,6 +196,7 @@ fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
                 group_id: row.get(4)?,
                 sort_order: row.get(5)?,
                 archived: row.get(6)?,
+                description: row.get(7)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -195,7 +210,7 @@ fn get_tasks(state: State<DbState>) -> Result<Vec<Task>, String> {
 fn create_task(task: Task, state: State<DbState>) -> Result<Task, String> {
     let conn = state.conn.lock().unwrap();
     conn.execute(
-        "INSERT INTO tasks (id, name, color, icon, group_id, sort_order, archived) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO tasks (id, name, color, icon, group_id, sort_order, archived, description) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         (
             &task.id,
             &task.name,
@@ -204,6 +219,7 @@ fn create_task(task: Task, state: State<DbState>) -> Result<Task, String> {
             &task.group_id,
             &task.sort_order,
             &task.archived,
+            &task.description,
         ),
     )
     .map_err(|e| e.to_string())?;
@@ -215,7 +231,7 @@ fn create_task(task: Task, state: State<DbState>) -> Result<Task, String> {
 fn update_task(task: Task, state: State<DbState>) -> Result<Task, String> {
     let conn = state.conn.lock().unwrap();
     conn.execute(
-        "UPDATE tasks SET name = ?1, color = ?2, icon = ?3, group_id = ?4, sort_order = ?5, archived = ?6 WHERE id = ?7",
+        "UPDATE tasks SET name = ?1, color = ?2, icon = ?3, group_id = ?4, sort_order = ?5, archived = ?6, description = ?7 WHERE id = ?8",
         (
             &task.name,
             &task.color,
@@ -223,6 +239,7 @@ fn update_task(task: Task, state: State<DbState>) -> Result<Task, String> {
             &task.group_id,
             &task.sort_order,
             &task.archived,
+            &task.description,
             &task.id,
         ),
     )
@@ -243,7 +260,7 @@ fn delete_task(task_id: String, state: State<DbState>) -> Result<(), String> {
 fn get_occurrences(start_date: String, end_date: String, state: State<DbState>) -> Result<Vec<Occurrence>, String> {
     let conn = state.conn.lock().unwrap();
     let mut stmt = conn
-        .prepare("SELECT id, task_id, date, status, title, notes, created_at, updated_at FROM occurrences WHERE date >= ?1 AND date <= ?2 ORDER BY date ASC")
+        .prepare("SELECT id, task_id, date, status, title, notes, repeat_group_id, repeating_notes, created_at, updated_at FROM occurrences WHERE date >= ?1 AND date <= ?2 ORDER BY date ASC")
         .map_err(|e| e.to_string())?;
 
     let occurrences = stmt
@@ -255,8 +272,10 @@ fn get_occurrences(start_date: String, end_date: String, state: State<DbState>) 
                 status: row.get(3)?,
                 title: row.get(4)?,
                 notes: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
+                repeat_group_id: row.get(6)?,
+                repeating_notes: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -272,7 +291,7 @@ fn create_occurrence(occurrence: Occurrence, state: State<DbState>) -> Result<Oc
     let now = Utc::now().to_rfc3339();
     
     conn.execute(
-        "INSERT INTO occurrences (id, task_id, date, status, title, notes, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        "INSERT INTO occurrences (id, task_id, date, status, title, notes, repeat_group_id, repeating_notes, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         (
             &occurrence.id,
             &occurrence.task_id,
@@ -280,6 +299,8 @@ fn create_occurrence(occurrence: Occurrence, state: State<DbState>) -> Result<Oc
             &occurrence.status,
             &occurrence.title,
             &occurrence.notes,
+            &occurrence.repeat_group_id,
+            &occurrence.repeating_notes,
             &now,
             &now,
         ),
@@ -295,11 +316,13 @@ fn update_occurrence(occurrence: Occurrence, state: State<DbState>) -> Result<Oc
     let now = Utc::now().to_rfc3339();
     
     conn.execute(
-        "UPDATE occurrences SET status = ?1, title = ?2, notes = ?3, updated_at = ?4 WHERE id = ?5",
+        "UPDATE occurrences SET status = ?1, title = ?2, notes = ?3, repeat_group_id = ?4, repeating_notes = ?5, updated_at = ?6 WHERE id = ?7",
         (
             &occurrence.status,
             &occurrence.title,
             &occurrence.notes,
+            &occurrence.repeat_group_id,
+            &occurrence.repeating_notes,
             &now,
             &occurrence.id,
         ),
@@ -322,6 +345,89 @@ fn delete_occurrence(occurrence_id: String, state: State<DbState>) -> Result<(),
         .map_err(|e| e.to_string())?;
     
     Ok(())
+}
+
+#[tauri::command]
+fn get_occurrences_by_repeat_group(repeat_group_id: String, state: State<DbState>) -> Result<Vec<Occurrence>, String> {
+    let conn = state.conn.lock().unwrap();
+    let mut stmt = conn
+        .prepare("SELECT id, task_id, date, status, title, notes, repeat_group_id, repeating_notes, created_at, updated_at FROM occurrences WHERE repeat_group_id = ?1 ORDER BY date ASC")
+        .map_err(|e| e.to_string())?;
+
+    let occurrences = stmt
+        .query_map([&repeat_group_id], |row| {
+            Ok(Occurrence {
+                id: row.get(0)?,
+                task_id: row.get(1)?,
+                date: row.get(2)?,
+                status: row.get(3)?,
+                title: row.get(4)?,
+                notes: row.get(5)?,
+                repeat_group_id: row.get(6)?,
+                repeating_notes: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<SqliteResult<Vec<Occurrence>>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(occurrences)
+}
+
+#[tauri::command]
+fn update_future_repeat_entries(repeat_group_id: String, from_date: String, title: Option<String>, repeating_notes: Option<String>, state: State<DbState>) -> Result<i32, String> {
+    let conn = state.conn.lock().unwrap();
+    let now = Utc::now().to_rfc3339();
+    
+    let count = conn.execute(
+        "UPDATE occurrences SET title = ?1, repeating_notes = ?2, updated_at = ?3 WHERE repeat_group_id = ?4 AND date >= ?5",
+        (
+            &title,
+            &repeating_notes,
+            &now,
+            &repeat_group_id,
+            &from_date,
+        ),
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(count as i32)
+}
+
+#[tauri::command]
+fn delete_future_repeat_entries(repeat_group_id: String, from_date: String, state: State<DbState>) -> Result<i32, String> {
+    let conn = state.conn.lock().unwrap();
+    
+    // First delete time entries for those occurrences
+    conn.execute(
+        "DELETE FROM time_entries WHERE occurrence_id IN (SELECT id FROM occurrences WHERE repeat_group_id = ?1 AND date >= ?2)",
+        [&repeat_group_id, &from_date],
+    )
+    .map_err(|e| e.to_string())?;
+    
+    // Then delete the occurrences
+    let count = conn.execute(
+        "DELETE FROM occurrences WHERE repeat_group_id = ?1 AND date >= ?2",
+        [&repeat_group_id, &from_date],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(count as i32)
+}
+
+#[tauri::command]
+fn check_occurrence_exists(task_id: String, date: String, state: State<DbState>) -> Result<bool, String> {
+    let conn = state.conn.lock().unwrap();
+    let mut stmt = conn
+        .prepare("SELECT COUNT(*) FROM occurrences WHERE task_id = ?1 AND date = ?2")
+        .map_err(|e| e.to_string())?;
+    
+    let count: i32 = stmt.query_row([&task_id, &date], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    
+    Ok(count > 0)
 }
 
 #[tauri::command]
@@ -398,24 +504,34 @@ fn set_setting(key: String, value: String, state: State<DbState>) -> Result<(), 
     Ok(())
 }
 
+#[tauri::command]
+fn get_database_path(state: State<DbState>) -> Result<String, String> {
+    Ok(state.db_path.clone())
+}
+
 fn main() {
-    // Get app data directory
+    // Get app data directory - using the same path as your working version
     let app_dir = tauri::api::path::app_data_dir(&tauri::Config::default())
         .expect("Failed to get app data directory");
     
     std::fs::create_dir_all(&app_dir).expect("Failed to create app directory");
     
     let db_path = app_dir.join("task_grid.db");
-    let conn = Connection::open(&db_path).expect("Failed to open database");
+    let db_path_string = db_path.to_string_lossy().to_string();
     
+    let conn = Connection::open(&db_path).expect("Failed to open database");
     init_database(&conn).expect("Failed to initialize database");
 
     let db_state = DbState {
         conn: Mutex::new(conn),
+        db_path: db_path_string,
     };
 
     tauri::Builder::default()
-        .manage(db_state)
+        .setup(|app| {
+            app.manage(db_state);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_tasks,
             create_task,
@@ -425,10 +541,15 @@ fn main() {
             create_occurrence,
             update_occurrence,
             delete_occurrence,
+            get_occurrences_by_repeat_group,
+            update_future_repeat_entries,
+            delete_future_repeat_entries,
+            check_occurrence_exists,
             get_time_entries,
             create_time_entry,
             get_setting,
             set_setting,
+            get_database_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

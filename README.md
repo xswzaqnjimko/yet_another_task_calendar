@@ -71,11 +71,14 @@ npm run tauri:build
 Some features/intended features (/developer's personal checklist, still working on this thing...)
 If a future update made one of these unavailable, that change needs fix...
 
+V1.1.2 2026/01/27.
+
 ### Grid View
 - **Spreadsheet-style layout** - Tasks as columns, dates as rows
 - **Default start on "today"** - Grid opens centered on current date
 - **Frozen headers** - Task names row and date column stay visible while scrolling
 - **Today highlighting** - Current date row is visually emphasized
+- **Week/Month boundaries** - Darker lines highlighting week/month boundaries
 - **Quick navigation** - Jump to top/today/bottom buttons
 - **Drag to reorder columns** - Remembers your preferred task order
 - **Privacy/Screenshot Mode** - Blur all text for safe screenshots
@@ -83,8 +86,9 @@ If a future update made one of these unavailable, that change needs fix...
 
 ### Cell Entries
 - **Click to edit** - Click any cell to add/edit entry content
+- **Repeat entries** - Create recurring entries (every X days for Y days)
 - **Copy/Cut/Paste** - Hover over cells to see clipboard actions
-- **Auto-save on click outside** - For existing entries, clicking outside saves changes
+- **Auto-save on click outside** - For existing entries, clicking outside saves changes (empty entries needs at least "start timer" to enable this)
 - **Timer support** - Start/stop timer for any entry; continue timing while modal is closed
 - **Multiple time records** - Track multiple work sessions per entry
 - **Manual time entry** - Add time records manually
@@ -98,7 +102,7 @@ If a future update made one of these unavailable, that change needs fix...
 
 ### Settings
 - **Language** - English / 简体中文 (in progress)
-- **Row height** - Normal / Thin / Fat rows
+- **Row height** - Thin / Fat rows
 - **Column width** - Fixed width / Full text
 
 ### Demo Tasks
@@ -121,10 +125,10 @@ If a future update made one of these unavailable, that change needs fix...
 - [ ] Empty Grid "load demo" button positioning
 - [ ] Keyboard shortcuts (Enter, ESC, Ctrl+C/V/X)
 - [ ] Export task/task group from Management
-- [ ] Recurrence options for entries
 - [ ] Fixed width mode text truncation
-- [ ] "Stop all timers" button
-- [ ] "Leave this column viewable" in Privacy/Screenshot mode
+- [ ] Potentially: "Stop all timers" button?
+- [ ] Potentially: undo delete for repeat entries? (Currently only restores single entry)
+- [ ] Screenshot mode: one column unblur MAY also unblur other columns
 - [ ] Etc. ...
 
 ## License

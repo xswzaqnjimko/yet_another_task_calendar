@@ -113,8 +113,23 @@
 }
 
 .date-cell.today {
-  background: var(--today-bg);
+  background: var(--border-color);
   font-weight: 600;
+}
+
+/* Today row - light gray background visible behind empty cells and as a tint on colored cells */
+tr.today-row > td.task-cell.empty {
+  background-color: var(--border-color);
+}
+
+/* Week border - darker top border on Mondays */
+tr.week-border > td {
+  border-top: 2px solid #999;
+}
+
+/* Month border - even darker top border on 1st of month */
+tr.month-border > td {
+  border-top: 3px solid #333;
 }
 
 /* Task Cells */
@@ -440,4 +455,25 @@
 
 .undo-indicator .undo-dismiss-btn:hover {
   color: #533f03;
+}
+
+/* Screenshot mode toggle popup */
+.screenshot-toggle-popup {
+  position: fixed;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  padding: 4px;
+  z-index: 200;
+  animation: popup-fade-in 0.15s ease-out;
+}
+
+.screenshot-toggle-popup .popup-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
+.screenshot-toggle-popup .popup-btn:hover {
+  background: #e8f4ff;
 }
