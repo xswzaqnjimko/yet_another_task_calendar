@@ -80,14 +80,14 @@ V1.1.2 2026/01/27.
 - **Today highlighting** - Current date row is visually emphasized
 - **Week/Month boundaries** - Darker lines highlighting week/month boundaries
 - **Quick navigation** - Jump to top/today/bottom buttons
-- **Drag to reorder columns** - Remembers your preferred task order
+- **Drag to reorder columns** - Like Excel, drag to "insert (before)". Remembers your preferred task order
 - **Privacy/Screenshot Mode** - Blur all text for safe screenshots
 - **Export CSV** - Export your data
 
 ### Cell Entries
 - **Click to edit** - Click any cell to add/edit entry content
 - **Repeat entries** - Create recurring entries (every X days for Y days, default 7 days for 70 days = 10 entries)
-- **Copy/Cut/Paste** - Hover over cells to see clipboard actions
+- **Copy/Cut/Paste** - Hover over cells to see clipboard actions. Time records won't be copied along with an entry.
 - **Auto-save on click outside** - For existing entries, clicking outside saves changes (empty entries needs at least "start timer" to enable this)
 - **Timer support** - Start/stop timer for any entry; continue timing while modal is closed
 - **Multiple time records** - Track multiple work sessions per entry
@@ -139,8 +139,4 @@ This project is for non-profit use.
 
 ## Acknowledgments
 
-Thanks to the creators of Apple Calendar, iHour, Excel and Google Sheets, gogh, and other existing time/task management tools for inspiration. 
-
-Thanks Claude Opus 4.5 & GPT 5.2 Thinking.
-
-Thanks my friends who supported and enjoyed this.
+Thanks to the creators of Apple Calendar, iHour, Excel and Google Sheets, gogh, and other existing time/task management tools for inspiration. Thanks my friends who supported and enjoyed this.
