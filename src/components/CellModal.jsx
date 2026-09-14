@@ -22,6 +22,10 @@ function CellModal({
   onClose,
   onUpdate,
   onSetDeletedItem,
+  // Fix 4: Targeted state update callbacks (single-row operations skip full reload)
+  onOccurrenceUpdated,
+  onOccurrenceCreated,
+  onOccurrenceDeleted,
   // multi timers
   activeTimers,
   timerNow,
@@ -78,7 +82,7 @@ function CellModal({
     setTitle(occurrenceProp?.title || '');
     setNotes(occurrenceProp?.notes || '');
     setStatus(occurrenceProp?.status || 'planned');
-    
+
     // Load repeat state
     const hasRepeat = !!occurrenceProp?.repeat_group_id;
     setRepeatEnabled(hasRepeat);
@@ -151,15 +155,23 @@ function CellModal({
 
     await createOccurrence(newOccurrence);
     setLocalOccurrence(newOccurrence);
-    
+
     // Create repeat entries if enabled
     if (repeatEnabled && repeatGroupId) {
       console.log('[Repeat Debug] Creating repeat entries...');
       await createRepeatEntries(newOccurrence, repeatGroupId);
       console.log('[Repeat Debug] Repeat entries created');
+      // Multi-row operation — full reload
+      await onUpdate();
+    } else {
+      // Fix 4: Single-row create — targeted update
+      if (onOccurrenceCreated) {
+        onOccurrenceCreated(newOccurrence);
+      } else {
+        await onUpdate();
+      }
     }
-    
-    await onUpdate();
+
     return newOccurrence;
   };
 
@@ -186,19 +198,19 @@ function CellModal({
   const createRepeatEntries = async (baseOccurrence, repeatGroupId) => {
     const interval = getRepeatEvery();
     const duration = getRepeatFor();
-    
+
     let currentDate = baseOccurrence.date;
     let daysCreated = 0;
     let entriesCreated = 0;
-    
+
     console.log('[Repeat Debug] createRepeatEntries starting:', { interval, duration, baseDate: baseOccurrence.date });
-    
+
     while (daysCreated < duration) {
       currentDate = addDaysToDate(currentDate, interval);
       daysCreated += interval;
-      
+
       if (daysCreated > duration) break;
-      
+
       // Check if occurrence already exists for this date
       try {
         const exists = await checkOccurrenceExists(taskId, currentDate);
@@ -210,7 +222,7 @@ function CellModal({
         console.warn('Error checking occurrence exists:', e);
         continue;
       }
-      
+
       const newOcc = {
         id: generateId(),
         task_id: taskId,
@@ -223,7 +235,7 @@ function CellModal({
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      
+
       try {
         await createOccurrence(newOcc);
         entriesCreated++;
@@ -232,7 +244,7 @@ function CellModal({
         console.warn('Error creating repeat occurrence:', e);
       }
     }
-    
+
     console.log('[Repeat Debug] createRepeatEntries finished. Created', entriesCreated, 'entries');
   };
 
@@ -245,7 +257,7 @@ function CellModal({
       repeatForInput,
       repeatingNotes
     });
-    
+
     try {
       if (!localOccurrence) {
         console.log('[Repeat Debug] No localOccurrence, calling createOccurrenceIfNeeded');
@@ -273,7 +285,7 @@ function CellModal({
           // Delete all future repeat entries
           await deleteFutureRepeatEntries(originalRepeatGroupId, todayStr);
         }
-        
+
         if (repeatEnabled) {
           // Create new repeat group and entries
           const newRepeatGroupId = generateId();
@@ -301,6 +313,8 @@ function CellModal({
           };
           await updateOccurrence(updatedOccurrence);
         }
+        // Multi-row operation — full reload
+        await onUpdate();
       } else if (hadRepeat && originalRepeatGroupId && (titleChanged || repeatingNotesChanged)) {
         // Title or repeating notes changed - update future entries
         await updateFutureRepeatEntries(
@@ -309,7 +323,7 @@ function CellModal({
           title || '',
           repeatingNotes || ''
         );
-        
+
         // Update current occurrence
         const updatedOccurrence = {
           ...localOccurrence,
@@ -320,6 +334,8 @@ function CellModal({
           updated_at: new Date().toISOString(),
         };
         await updateOccurrence(updatedOccurrence);
+        // Multi-row operation — full reload
+        await onUpdate();
       } else {
         // Normal update (no repeat changes)
         const updatedOccurrence = {
@@ -331,9 +347,14 @@ function CellModal({
           updated_at: new Date().toISOString(),
         };
         await updateOccurrence(updatedOccurrence);
+        // Fix 4: Single-row update — targeted
+        if (onOccurrenceUpdated) {
+          onOccurrenceUpdated(updatedOccurrence);
+        } else {
+          await onUpdate();
+        }
       }
 
-      await onUpdate();
       onClose();
     } catch (error) {
       console.error('Error saving occurrence:', error);
@@ -343,13 +364,13 @@ function CellModal({
 
   const handleDelete = async () => {
     if (!localOccurrence) return;
-    
+
     // Different confirmation message based on whether it's a repeat entry
     const hasRepeatGroup = !!localOccurrence.repeat_group_id;
-    const confirmMsg = hasRepeatGroup 
-      ? 'Delete this entry and all future repeat entries?' 
+    const confirmMsg = hasRepeatGroup
+      ? 'Delete this entry and all future repeat entries?'
       : 'Delete this entry?';
-    
+
     if (!confirm(confirmMsg)) return;
 
     try {
@@ -367,7 +388,7 @@ function CellModal({
         const todayStr = getTodayStr();
         await deleteFutureRepeatEntries(localOccurrence.repeat_group_id, todayStr);
       }
-      
+
       // Also delete this specific occurrence (in case it's before today)
       // deleteFutureRepeatEntries only deletes >= today, so we need this for past entries
       try {
@@ -376,8 +397,19 @@ function CellModal({
         // Ignore if already deleted by deleteFutureRepeatEntries
         console.log('Note: occurrence may have been deleted with future entries');
       }
-      
-      await onUpdate();
+
+      if (hasRepeatGroup) {
+        // Multi-row delete — full reload
+        await onUpdate();
+      } else {
+        // Fix 4: Single-row delete — targeted
+        if (onOccurrenceDeleted) {
+          onOccurrenceDeleted(localOccurrence.id);
+        } else {
+          await onUpdate();
+        }
+      }
+
       onClose();
     } catch (error) {
       console.error('Error deleting occurrence:', error);
@@ -568,7 +600,7 @@ function CellModal({
               />
               <span>Repeat</span>
             </label>
-            
+
             {repeatEnabled && (
               <div className="repeat-options">
                 <div className="repeat-row">
@@ -611,7 +643,7 @@ function CellModal({
                   />
                   <span>day(s)</span>
                 </div>
-                
+
                 {/* Repeating Notes - only shown when repeat is enabled */}
                 <div className="form-group" style={{ marginTop: '12px' }}>
                   <label>{t.repeatingNotes || 'Repeating Notes'}</label>
@@ -622,7 +654,7 @@ function CellModal({
                     rows="2"
                   />
                 </div>
-                
+
                 {originalRepeatGroupId && (
                   <div className="repeat-info">
                     ℹ️ Editing Title or Repeating Notes will update all future entries.

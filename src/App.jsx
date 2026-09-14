@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Header from './components/Header';
 import Grid from './components/Grid';
 import CellModal from './components/CellModal';
 import TaskModal from './components/TaskModal';
 import TaskDetailsPage from './components/TaskDetailsPage';
-import { 
-  getTasks, 
-  getOccurrences, 
-  getSetting, 
+import {
+  getTasks,
+  getOccurrences,
+  getSetting,
   setSetting,
   createTask,
   createOccurrence,
@@ -29,10 +29,20 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false); // Track if we've ever loaded data
   const [currentPage, setCurrentPage] = useState('grid');
-  
+
   // Dynamic date range for Grid based on earliest occurrence
   const [gridStartDate, setGridStartDate] = useState(null);
-  const [gridEndDate, setGridEndDate] = useState(null);
+  // Fix 3: Future horizon controlled by futureMonths state (default 3 months)
+  const [futureMonths, setFutureMonths] = useState(3);
+
+  // Grid end date derived from futureMonths — no refetch needed on "load more"
+  const gridEndDate = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(today);
+    end.setMonth(end.getMonth() + futureMonths);
+    return end;
+  }, [futureMonths]);
 
   // Privacy / screenshot mode
   // - normal: everything visible
@@ -40,11 +50,12 @@ function App() {
   // - spotlight: blur all except selected task columns
   const [privacyMode, setPrivacyMode] = useState('normal');
   const [spotlightTaskIds, setSpotlightTaskIds] = useState([]); // Array of visible task IDs
-  
+
   const [cellModalOpen, setCellModalOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [selectedCell, setSelectedCell] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [insertBeforeTaskId, setInsertBeforeTaskId] = useState(null); // For "insert new task to the left"
 
   // Clipboard state for copy/cut/paste
   const [clipboard, setClipboard] = useState(null); // { occurrence, isCut }
@@ -75,13 +86,13 @@ function App() {
   const loadData = async ({ showLoading = false } = {}) => {
     try {
       if (showLoading) setLoading(true);
-      
+
       // Load settings
       const savedLanguage = await getSetting('language');
       const savedDensity = await getSetting('row_density');
       const savedColumnWidth = await getSetting('column_width');
       const savedColumnOrder = await getSetting('column_order');
-      
+
       if (savedLanguage) setLanguage(savedLanguage);
       // Handle legacy 'normal' density - convert to 'thin'
       if (savedDensity && savedDensity !== 'normal') {
@@ -101,33 +112,33 @@ function App() {
           console.error('Error parsing column order:', e);
         }
       }
-      
+
       // Load tasks
       const tasksData = await getTasks();
       setTasks(tasksData);
-      
-      // Load occurrences - first with a wide range to find the earliest
+
+      // Load occurrences with a range wider than the display range,
+      // so "load more" doesn't require a refetch
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
-      // End date: 1 year + 1 month from today
-      const endDate = new Date(today);
-      endDate.setFullYear(endDate.getFullYear() + 1);
-      endDate.setMonth(endDate.getMonth() + 1);
-      
-      // Start date: initially go back far to find earliest occurrence
+
+      // Fetch end date: 2 years ahead (wider than display range)
+      const fetchEndDate = new Date(today);
+      fetchEndDate.setFullYear(fetchEndDate.getFullYear() + 2);
+
+      // Start date: 3 years back (reduced from 10 years)
       const wideStartDate = new Date(today);
-      wideStartDate.setFullYear(wideStartDate.getFullYear() - 10); // 10 years back to find any old data
-      
+      wideStartDate.setFullYear(wideStartDate.getFullYear() - 3);
+
       const occurrencesData = await getOccurrences(
         formatDate(wideStartDate),
-        formatDate(endDate)
+        formatDate(fetchEndDate)
       );
-      
+
       // Find the earliest occurrence date, or default to yesterday
       let earliestDate = new Date(today);
       earliestDate.setDate(earliestDate.getDate() - 1); // Default: yesterday
-      
+
       if (occurrencesData && occurrencesData.length > 0) {
         for (const occ of occurrencesData) {
           const occDate = new Date(occ.date + 'T00:00:00');
@@ -138,14 +149,14 @@ function App() {
         // Go back 1 day before the earliest entry
         earliestDate.setDate(earliestDate.getDate() - 1);
       }
-      
+
       // Store the computed start date for Grid to use
+      // (gridEndDate is derived from futureMonths via useMemo)
       setGridStartDate(earliestDate);
-      setGridEndDate(endDate);
-      
+
       setOccurrences(occurrencesData);
       setDataLoaded(true);
-      
+
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -234,8 +245,16 @@ function App() {
 
   const handleAddTask = () => {
     setSelectedTask(null);
+    setInsertBeforeTaskId(null);
     setTaskModalOpen(true);
   };
+
+  // Hover "+" on column header → insert new task to the left of that column
+  const handleAddTaskAt = useCallback((referenceTaskId) => {
+    setSelectedTask(null);
+    setInsertBeforeTaskId(referenceTaskId);
+    setTaskModalOpen(true);
+  }, []);
 
   const handleLoadDemo = async () => {
     try {
@@ -264,14 +283,14 @@ function App() {
       if (deletedItem.type === 'task') {
         // Restore the task
         await createTask(deletedItem.data);
-        
+
         // Restore related occurrences
         if (deletedItem.relatedOccurrences) {
           for (const occ of deletedItem.relatedOccurrences) {
             await createOccurrence(occ);
           }
         }
-        
+
         // Restore related time entries
         if (deletedItem.relatedTimeEntries) {
           for (const entry of deletedItem.relatedTimeEntries) {
@@ -281,7 +300,7 @@ function App() {
       } else if (deletedItem.type === 'occurrence') {
         // Restore the occurrence
         await createOccurrence(deletedItem.data);
-        
+
         // Restore related time entries
         if (deletedItem.relatedTimeEntries) {
           for (const entry of deletedItem.relatedTimeEntries) {
@@ -317,11 +336,41 @@ function App() {
     setClipboard(null);
   };
 
+  // --- Fix 4: Targeted state update helpers ---
+  // These update the in-memory occurrences array directly, avoiding a full data reload.
+  // Rule: if the DB write touches exactly one occurrence row and nothing else → targeted.
+  // Otherwise → fall back to loadData().
+  const updateOccurrenceInState = useCallback((updatedOcc) => {
+    setOccurrences(prev => {
+      const idx = prev.findIndex(o => o.id === updatedOcc.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = updatedOcc;
+        return next;
+      }
+      // New occurrence not in array — add it
+      return [...prev, updatedOcc];
+    });
+  }, []);
+
+  const addOccurrenceToState = useCallback((newOcc) => {
+    setOccurrences(prev => [...prev, newOcc]);
+  }, []);
+
+  const removeOccurrenceFromState = useCallback((occId) => {
+    setOccurrences(prev => prev.filter(o => o.id !== occId));
+  }, []);
+
+  // --- Fix 3: Extend future horizon (+6 months per click) ---
+  const extendFuture = useCallback(() => {
+    setFutureMonths(prev => prev + 6);
+  }, []);
+
   const handlePaste = async (targetTaskId, targetDate) => {
     if (!clipboard?.occurrence) return;
 
     const sourceOcc = clipboard.occurrence;
-    
+
     try {
       // Check if target cell already has an occurrence
       const existingOcc = occurrences.find(
@@ -338,6 +387,8 @@ function App() {
           updated_at: new Date().toISOString(),
         };
         await updateOccurrence(updatedOccurrence);
+        // Fix 4: Targeted update instead of full reload
+        updateOccurrenceInState(updatedOccurrence);
       } else {
         // Create new occurrence with pasted content
         const newOccurrence = {
@@ -351,18 +402,21 @@ function App() {
           updated_at: new Date().toISOString(),
         };
         await createOccurrence(newOccurrence);
+        // Fix 4: Targeted update instead of full reload
+        addOccurrenceToState(newOccurrence);
       }
 
       // If it was a cut operation, delete the source occurrence
       if (clipboard.isCut) {
         await deleteOccurrence(sourceOcc.id);
+        // Fix 4: Targeted removal instead of full reload
+        removeOccurrenceFromState(sourceOcc.id);
         setClipboard(null);
       }
-
-      // Refresh data
-      await loadData();
     } catch (error) {
       console.error('Error pasting occurrence:', error);
+      // Fall back to full reload on error to ensure consistency
+      await loadData();
     }
   };
 
@@ -467,7 +521,7 @@ function App() {
             onTogglePrivacy={togglePrivacyMode}
             onClearSpotlight={clearSpotlight}
           />
-          
+
           <Grid
             tasks={tasks}
             occurrences={occurrences}
@@ -480,6 +534,7 @@ function App() {
             onCellClick={handleCellClick}
             onTaskClick={handleTaskClick}
             onLoadDemo={handleLoadDemo}
+            onExtendFuture={extendFuture}
             deletedItem={deletedItem}
             onUndoDelete={handleUndoDelete}
             onClearDeletedItem={clearDeletedItem}
@@ -496,6 +551,7 @@ function App() {
             onClearClipboard={handleClearClipboard}
             columnOrder={columnOrder}
             onColumnOrderChange={handleColumnOrderChange}
+            onAddTaskAt={handleAddTaskAt}
           />
         </>
       ) : (
@@ -509,7 +565,7 @@ function App() {
           onClearDeletedItem={clearDeletedItem}
         />
       )}
-      
+
       {cellModalOpen && (
         <CellModal
           taskId={selectedCell?.taskId}
@@ -524,6 +580,9 @@ function App() {
           onClose={() => setCellModalOpen(false)}
           onUpdate={loadData}
           onSetDeletedItem={setDeletedItemForUndo}
+          onOccurrenceUpdated={updateOccurrenceInState}
+          onOccurrenceCreated={addOccurrenceToState}
+          onOccurrenceDeleted={removeOccurrenceFromState}
         />
       )}
 
@@ -532,8 +591,42 @@ function App() {
           taskId={selectedTask}
           tasks={tasks}
           language={language}
-          onClose={() => setTaskModalOpen(false)}
-          onUpdate={loadData}
+          onClose={() => {
+            setTaskModalOpen(false);
+            setInsertBeforeTaskId(null);
+          }}
+          onUpdate={async () => {
+            const oldTaskIds = new Set(tasks.map(t => t.id));
+            await loadData();
+            // After reload, if we have an insertion target, find the new task and splice it in
+            if (insertBeforeTaskId) {
+              try {
+                const freshTasks = await getTasks();
+                const newTask = freshTasks.find(t => !oldTaskIds.has(t.id));
+                if (newTask) {
+                  const currentOrder = [...columnOrder];
+                  // Ensure all existing task IDs are in the order array
+                  const existingIds = new Set(currentOrder);
+                  freshTasks.filter(t => !t.archived).forEach(t => {
+                    if (!existingIds.has(t.id) && t.id !== newTask.id) {
+                      currentOrder.push(t.id);
+                    }
+                  });
+                  // Insert the new task before the reference column
+                  const refIndex = currentOrder.indexOf(insertBeforeTaskId);
+                  if (refIndex >= 0) {
+                    currentOrder.splice(refIndex, 0, newTask.id);
+                  } else {
+                    currentOrder.push(newTask.id);
+                  }
+                  await handleColumnOrderChange(currentOrder);
+                }
+              } catch (err) {
+                console.error('Failed to insert task at position:', err);
+              }
+              setInsertBeforeTaskId(null);
+            }
+          }}
         />
       )}
     </div>

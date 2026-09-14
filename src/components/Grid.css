@@ -137,7 +137,7 @@ tr.month-border > td {
   width: 100px;
   height: 50px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: opacity 0.15s;
   position: relative;
 }
 
@@ -163,8 +163,7 @@ tr.month-border > td {
 }
 
 .task-cell:hover {
-  opacity: 0.8;
-  transform: scale(0.98);
+  opacity: 0.85;
 }
 
 .task-cell.empty {
@@ -177,16 +176,23 @@ tr.month-border > td {
 
 /* Cell content */
 .cell-content {
-  padding: 8px;
+  padding: 4px 8px;
   font-size: 11px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: #1d1d1f;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  line-height: 1.3;
+  /* Default (fixed width): allow wrapping, clamp to 3 lines */
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
 /* Timing indicator shown on cells with an active timer */
@@ -200,8 +206,12 @@ tr.month-border > td {
 }
 
 .cell-content.fat {
-  white-space: normal;
   line-height: 1.4;
+}
+
+/* Full Text (auto width) mode: also 3-line clamp */
+.grid-table.auto .cell-content {
+  -webkit-line-clamp: 3;
 }
 
 /* Privacy / Screenshot mode: blur only the text layer (keep colors and grid layout) */
@@ -459,7 +469,7 @@ tr.month-border > td {
 
 /* Screenshot mode toggle popup */
 .screenshot-toggle-popup {
-  position: fixed;
+  position: absolute;
   background: white;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -476,4 +486,51 @@ tr.month-border > td {
 
 .screenshot-toggle-popup .popup-btn:hover {
   background: #e8f4ff;
+}
+
+/* Normal mode: "+" popup on column headers */
+.header-add-popup {
+  position: absolute;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  padding: 4px;
+  z-index: 200;
+  animation: popup-fade-in 0.15s ease-out;
+}
+
+.header-add-popup .popup-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #666;
+}
+
+.header-add-popup .popup-btn:hover {
+  background: #e8f4ff;
+  color: #007aff;
+}
+
+/* Load more future dates button */
+.load-more-row {
+  text-align: center;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.load-more-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 20px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.load-more-btn:hover {
+  background: var(--bg-hover);
+  color: #333;
 }
