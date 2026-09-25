@@ -172,6 +172,20 @@ function App() {
     return `${year}-${month}-${day}`;
   };
 
+  // Today string — refreshed on visibility change so the highlight row moves after midnight
+  const [todayStr, setTodayStr] = useState(() => formatDate(new Date()));
+
+  useEffect(() => {
+    const checkDateChange = () => {
+      if (document.visibilityState === 'visible') {
+        const now = formatDate(new Date());
+        setTodayStr(prev => prev !== now ? now : prev);
+      }
+    };
+    document.addEventListener('visibilitychange', checkDateChange);
+    return () => document.removeEventListener('visibilitychange', checkDateChange);
+  }, []);
+
   const handleLanguageChange = async (newLanguage) => {
     setLanguage(newLanguage);
     await setSetting('language', newLanguage);
@@ -552,6 +566,7 @@ function App() {
             columnOrder={columnOrder}
             onColumnOrderChange={handleColumnOrderChange}
             onAddTaskAt={handleAddTaskAt}
+            todayStr={todayStr}
           />
         </>
       ) : (

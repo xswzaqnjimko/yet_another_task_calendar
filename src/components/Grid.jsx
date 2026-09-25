@@ -34,12 +34,12 @@ const GridTableBody = React.memo(function GridTableBody({
   privacyMode,
   spotlightTaskIds,
   todayRowRef,
+  todayStr,
   onExtendFuture,
   onBodyClick,
   onBodyMouseOver,
   onBodyMouseOut,
 }) {
-  const todayStr = formatDate(new Date());
 
   const isTextBlurred = (taskId) => {
     if (!privacyMode || privacyMode === 'normal') return false;
@@ -175,7 +175,8 @@ function Grid({
   onClearClipboard,
   columnOrder,
   onColumnOrderChange,
-  onAddTaskAt
+  onAddTaskAt,
+  todayStr
 }) {
   // Sort and filter tasks based on columnOrder if available
   const activeTasks = useMemo(() => {
@@ -649,6 +650,7 @@ function Grid({
             privacyMode={privacyMode}
             spotlightTaskIds={spotlightTaskIds}
             todayRowRef={todayRowRef}
+            todayStr={todayStr}
             onExtendFuture={onExtendFuture}
             onBodyClick={handleBodyClick}
             onBodyMouseOver={handleBodyMouseOver}
